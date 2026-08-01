@@ -1,0 +1,44 @@
+{
+  "name": "poly-bot-next",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "24.x",
+    "pnpm": "10"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "preinstall": "pnpx only-allow pnpm"
+  },
+  "dependencies": {
+    "clsx": "2.1.1",
+    "lucide-react": "^0.575.0",
+    "next": "15.5.20",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "tailwind-merge": "^3.3.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "24.0.14",
+    "@types/react": "19.1.8",
+    "@types/react-dom": "19.1.6",
+    "eslint": "^9.31.0",
+    "eslint-config-next": "15.5.20",
+    "eslint-config-prettier": "^10.1.5",
+    "postcss": "^8.5.6",
+    "prettier": "^3.6.2",
+    "prettier-plugin-tailwindcss": "^0.7.2",
+    "tailwindcss": "^4.1.18",
+    "typescript": "5.8.3"
+  },
+  "packageManager": "pnpm@10.33.1"
+}
