@@ -1018,6 +1018,17 @@ button.kpi-card:hover {
   text-align: right;
 }
 
+.balance-total-line {
+  border-top: 1px solid var(--border);
+  border-bottom: 0;
+}
+
+.balance-total-line strong,
+.balance-total-line code {
+  color: #e2e7ef;
+  font-weight: 600;
+}
+
 .gas-runway {
   display: flex;
   align-items: flex-start;

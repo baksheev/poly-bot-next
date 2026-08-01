@@ -141,6 +141,11 @@ function formatBalance(value: number | null, asset: "usdc" | "wld" | "esp") {
   return formatNumber(value, asset === "usdc" ? 2 : 4);
 }
 
+function addBalance(total: number | null, value: number | null) {
+  if (value === null || Number.isNaN(value)) return total;
+  return (total ?? 0) + value;
+}
+
 function formatResourceAmount(value: number, asset: "ETH" | "BNB") {
   const digits = value < 0.001 ? 6 : value < 1 ? 3 : 2;
   return `${formatNumber(value, digits)} ${asset}`;
@@ -233,6 +238,22 @@ export function PnlDashboard({
 
     return { total, missing };
   }, [pair, selectedDays]);
+
+  const balanceTotals = useMemo(
+    () =>
+      report.balances.reduce(
+        (totals, balance) => ({
+          usdc: addBalance(totals.usdc, balance.usdc),
+          wld: addBalance(totals.wld, balance.wld),
+          esp: addBalance(totals.esp, balance.esp),
+        }),
+        { usdc: null, wld: null, esp: null } as Record<
+          "usdc" | "wld" | "esp",
+          number | null
+        >,
+      ),
+    [report.balances],
+  );
 
   const today = report.days.at(-1);
   const todayPnl =
@@ -1103,6 +1124,13 @@ export function PnlDashboard({
                       <time>{formatUpdated(balance.observedAt)}</time>
                     </div>
                   ))}
+                  <div className="balance-line balance-total-line" role="row">
+                    <strong>Totals</strong>
+                    <code>{formatBalance(balanceTotals.usdc, "usdc")}</code>
+                    <code>{formatBalance(balanceTotals.wld, "wld")}</code>
+                    <code>{formatBalance(balanceTotals.esp, "esp")}</code>
+                    <time>—</time>
+                  </div>
                 </div>
               </div>
             </article>
