@@ -147,7 +147,16 @@ function addBalance(total: number | null, value: number | null) {
 }
 
 function formatResourceAmount(value: number, asset: "ETH" | "BNB") {
-  const digits = value < 0.001 ? 6 : value < 1 ? 3 : 2;
+  const digits =
+    value >= 1
+      ? 4
+      : value >= 0.1
+        ? 3
+        : value >= 0.01
+          ? 5
+          : value >= 0.001
+            ? 6
+            : 8;
   return `${formatNumber(value, digits)} ${asset}`;
 }
 
