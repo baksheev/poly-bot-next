@@ -14,7 +14,7 @@ const EMPTY_PAIR: DailyPairPnl = {
   residualMarkUsdc: 0,
   comparablePnlUsdc: 0,
   gasCostUsdc: 0,
-  recoveryLossUsdc: 0,
+  turnoverUsdc: 0,
   binanceFeeUsdc: 0,
 };
 
@@ -34,7 +34,7 @@ function makePair(index: number, pair: PairKey): DailyPairPnl {
   const cash = (seeded(index, salt + 2) - 0.34 + pulse * 0.15) * (pair === "wld" ? 7.4 : 3.1);
   const residual = (seeded(index, salt + 5) - 0.52) * 0.22;
   const gas = trades * (pair === "wld" ? 0.0032 : 0.0014);
-  const recovery = seeded(index, salt + 7) > 0.89 ? seeded(index, salt + 8) * 0.7 : 0;
+  const turnover = trades * (pair === "wld" ? 94 : 61) * (0.8 + seeded(index, salt + 7) * 0.4);
   const comparable = cash + residual;
 
   return {
@@ -44,7 +44,7 @@ function makePair(index: number, pair: PairKey): DailyPairPnl {
     residualMarkUsdc: residual,
     comparablePnlUsdc: comparable,
     gasCostUsdc: gas,
-    recoveryLossUsdc: recovery,
+    turnoverUsdc: turnover,
     binanceFeeUsdc: null,
   };
 }

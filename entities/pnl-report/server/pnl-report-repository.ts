@@ -29,7 +29,7 @@ const dailyRowSchema = z.object({
   residual_mark_usdc: z.coerce.number(),
   comparable_pnl_usdc: z.coerce.number(),
   gas_cost_usdc: z.coerce.number(),
-  recovery_loss_usdc: z.coerce.number(),
+  turnover_usdc: z.coerce.number(),
   binance_fee_usdc: z.coerce.number().nullable(),
 });
 
@@ -212,7 +212,7 @@ function emptyPair(): DailyPairPnl {
     residualMarkUsdc: 0,
     comparablePnlUsdc: 0,
     gasCostUsdc: 0,
-    recoveryLossUsdc: 0,
+    turnoverUsdc: 0,
     binanceFeeUsdc: 0,
   };
 }
@@ -245,7 +245,7 @@ async function loadClickHouseReport(config: ClickHouseConfig): Promise<PnlDashbo
       sum(toInt128OrZero(JSONExtractString(payload_json, 'residual_value_token_a_base_units'))) / 1000000 AS residual_mark_usdc,
       sum(toInt128OrZero(JSONExtractString(payload_json, 'comparable_profit_token_a_base_units'))) / 1000000 AS comparable_pnl_usdc,
       sum(toInt128OrZero(JSONExtractString(payload_json, 'gas_cost_token_a_base_units'))) / 1000000 AS gas_cost_usdc,
-      sum(toInt128OrZero(JSONExtractString(payload_json, 'recovery_loss_token_a_base_units'))) / 1000000 AS recovery_loss_usdc,
+      sum(toInt128OrZero(JSONExtractString(payload_json, 'realized_primary_cost_token_a_base_units'))) / 1000000 AS turnover_usdc,
       if(
         countIf(NOT JSONExtractBool(payload_json, 'third_asset_valuation_complete')) > 0,
         NULL,
@@ -423,7 +423,7 @@ async function loadClickHouseReport(config: ClickHouseConfig): Promise<PnlDashbo
       residualMarkUsdc: row.residual_mark_usdc,
       comparablePnlUsdc: row.comparable_pnl_usdc,
       gasCostUsdc: row.gas_cost_usdc,
-      recoveryLossUsdc: row.recovery_loss_usdc,
+      turnoverUsdc: row.turnover_usdc,
       binanceFeeUsdc: row.binance_fee_usdc,
     };
   }

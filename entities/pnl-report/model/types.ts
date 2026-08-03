@@ -7,7 +7,7 @@ export type DailyPairPnl = {
   residualMarkUsdc: number;
   comparablePnlUsdc: number;
   gasCostUsdc: number;
-  recoveryLossUsdc: number;
+  turnoverUsdc: number;
   binanceFeeUsdc: number | null;
 };
 

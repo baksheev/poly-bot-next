@@ -48,7 +48,8 @@ The repository reads the two production pair IDs already emitted by `poly_bot`:
 Daily P&L comes from terminal `dex_first` events with
 `kind = 'arbitrage_result'` in `runtime_telemetry`.
 Comparable P&L uses `comparable_profit_token_a_base_units`, which includes the
-conservative residual inventory mark. Open exposure is derived from the latest
+conservative residual inventory mark. Daily turnover uses the realized primary
+USDC cost from completed trades. Open exposure is derived from the latest
 `arbitrage_inventory_state` per plan and excludes plans with a newer terminal
 result.
 

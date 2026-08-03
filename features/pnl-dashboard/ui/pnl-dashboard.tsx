@@ -22,7 +22,7 @@ const ZERO_PAIR: DailyPairPnl = {
   residualMarkUsdc: 0,
   comparablePnlUsdc: 0,
   gasCostUsdc: 0,
-  recoveryLossUsdc: 0,
+  turnoverUsdc: 0,
   binanceFeeUsdc: 0,
 };
 
@@ -72,7 +72,7 @@ function addPair(left: DailyPairPnl, right: DailyPairPnl): DailyPairPnl {
     residualMarkUsdc: left.residualMarkUsdc + right.residualMarkUsdc,
     comparablePnlUsdc: left.comparablePnlUsdc + right.comparablePnlUsdc,
     gasCostUsdc: left.gasCostUsdc + right.gasCostUsdc,
-    recoveryLossUsdc: left.recoveryLossUsdc + right.recoveryLossUsdc,
+    turnoverUsdc: left.turnoverUsdc + right.turnoverUsdc,
     binanceFeeUsdc:
       left.binanceFeeUsdc === null || right.binanceFeeUsdc === null
         ? null
@@ -888,15 +888,11 @@ export function PnlDashboard({
                             </strong>
                           </div>
                           <div className="accounting-card">
-                            <span>Recovery loss</span>
-                            <strong
-                              className={
-                                aggregate.recoveryLossUsdc
-                                  ? "text-loss"
-                                  : "text-muted"
-                              }
-                            >
-                              {formatMoney(-aggregate.recoveryLossUsdc)}
+                            <span>
+                              Turnover <small>USDC</small>
+                            </span>
+                            <strong className="text-secondary">
+                              {formatNumber(aggregate.turnoverUsdc, 2)}
                             </strong>
                           </div>
                           <div className="accounting-card accounting-card-total">
