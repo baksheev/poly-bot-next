@@ -300,19 +300,28 @@ async function loadClickHouseReport(config: ClickHouseConfig): Promise<PnlDashbo
             AND JSONExtractString(payload_json, 'state') = 'BlockedUnknown'
         ) AS blocked_at,
         maxIf(observed_at_ms, kind = 'arbitrage_result') AS result_at,
+        maxIf(
+          observed_at_ms,
+          kind = 'arbitrage_terminal_state'
+            AND JSONExtractString(payload_json, 'state') = 'Balanced'
+        ) AS terminal_at,
         argMaxIf(
           JSONExtractString(payload_json, 'pair_id'),
           observed_at_ms,
-          kind IN ('arbitrage_admitted', 'arbitrage_result')
+          kind IN ('arbitrage_admitted', 'arbitrage_result', 'arbitrage_terminal_state')
             AND JSONExtractString(payload_json, 'pair_id') != ''
         ) AS pair_id
       FROM runtime_telemetry
-      WHERE kind IN ('arbitrage_inventory_state', 'arbitrage_admitted', 'arbitrage_result')
+      WHERE kind IN (
+        'arbitrage_inventory_state',
+        'arbitrage_admitted',
+        'arbitrage_result',
+        'arbitrage_terminal_state'
+      )
         AND observed_at_ms >= toUnixTimestamp64Milli(now64(3, 'UTC') - INTERVAL 30 DAY)
       GROUP BY plan_id
     )
-    WHERE blocked_at > 0
-      AND result_at = 0
+    WHERE blocked_at > greatest(result_at, terminal_at)
       AND plan_id != ''
       AND pair_id IN ('${PAIR_IDS.wld}', '${PAIR_IDS.esp}')
     ORDER BY blocked_at DESC
