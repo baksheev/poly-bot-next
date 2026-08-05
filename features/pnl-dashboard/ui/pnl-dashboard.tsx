@@ -42,28 +42,32 @@ const MONTHS = [
   "Dec",
 ] as const;
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
-const RESOURCE_ROWS = [
+const RESOURCE_ROWS: ReadonlyArray<{
+  resourceId: string;
+  label: string;
+  pairs: readonly PairKey[];
+}> = [
   {
     resourceId: "eip155:480:evm-wallet:primary:native",
     label: "World Chain",
-    pair: "wld",
+    pairs: ["wld"],
   },
   {
     resourceId: "eip155:42161:evm-wallet:primary:native",
     label: "Arbitrum",
-    pair: "esp",
+    pairs: ["arb", "esp"],
   },
   {
     resourceId: "eip155:10:evm-wallet:primary:native",
     label: "Optimism bridge",
-    pair: null,
+    pairs: [],
   },
   {
     resourceId: "binance-spot:primary:asset:BNB",
     label: "Binance Spot",
-    pair: null,
+    pairs: [],
   },
-] as const;
+];
 const REBALANCING_STATES: ReadonlyArray<{
   state: RebalancingState | "active";
   label: string;
@@ -102,9 +106,8 @@ function addPair(left: DailyPairPnl, right: DailyPairPnl): DailyPairPnl {
 }
 
 function pairForDay(day: PnlDay, pair: PairFilter) {
-  if (pair === "wld") return day.wld;
-  if (pair === "esp") return day.esp;
-  return addPair(day.wld, day.esp);
+  if (pair !== "all") return day[pair];
+  return addPair(addPair(day.wld, day.esp), day.arb);
 }
 
 function formatNumber(value: number, digits: number) {
@@ -166,7 +169,10 @@ function formatGasPrice(value: number | null) {
   return `${formatNumber(value, digits)} gwei`;
 }
 
-function formatBalance(value: number | null, asset: "usdc" | "wld" | "esp") {
+function formatBalance(
+  value: number | null,
+  asset: "usdc" | "wld" | "esp" | "arb",
+) {
   if (value === null || Number.isNaN(value)) return "—";
   return formatNumber(value, asset === "usdc" ? 2 : 4);
 }
@@ -285,9 +291,10 @@ export function PnlDashboard({
           usdc: addBalance(totals.usdc, balance.usdc),
           wld: addBalance(totals.wld, balance.wld),
           esp: addBalance(totals.esp, balance.esp),
+          arb: addBalance(totals.arb, balance.arb),
         }),
-        { usdc: null, wld: null, esp: null } as Record<
-          "usdc" | "wld" | "esp",
+        { usdc: null, wld: null, esp: null, arb: null } as Record<
+          "usdc" | "wld" | "esp" | "arb",
           number | null
         >,
       ),
@@ -312,7 +319,11 @@ export function PnlDashboard({
       if (day.status === "no_data") continue;
       const values =
         breakdown === "pair" && pair === "all"
-          ? [day.wld.comparablePnlUsdc, day.esp.comparablePnlUsdc]
+          ? [
+              day.wld.comparablePnlUsdc,
+              day.esp.comparablePnlUsdc,
+              day.arb.comparablePnlUsdc,
+            ]
           : [pairForDay(day, pair).comparablePnlUsdc];
       positive = Math.max(
         positive,
@@ -422,6 +433,12 @@ export function PnlDashboard({
             onClick={() => setPair("esp")}
           >
             ESP/USDC
+          </SegmentedButton>
+          <SegmentedButton
+            active={pair === "arb"}
+            onClick={() => setPair("arb")}
+          >
+            ARB/USDC
           </SegmentedButton>
         </div>
         <div className="segment-group">
@@ -563,6 +580,10 @@ export function PnlDashboard({
                     <i className="legend-esp" />
                     ESP/USDC
                   </span>
+                  <span>
+                    <i className="legend-arb" />
+                    ARB/USDC
+                  </span>
                   <span className="legend-note">red shades = loss</span>
                 </div>
               )}
@@ -615,13 +636,14 @@ export function PnlDashboard({
                             pair: "esp" as const,
                             value: day.esp.comparablePnlUsdc,
                           },
+                          {
+                            pair: "arb" as const,
+                            value: day.arb.comparablePnlUsdc,
+                          },
                         ]
                       : [
                           {
-                            pair:
-                              pair === "esp"
-                                ? ("esp" as const)
-                                : ("wld" as const),
+                            pair: pair === "all" ? ("wld" as const) : pair,
                             value: pairForDay(day, pair).comparablePnlUsdc,
                           },
                         ];
@@ -732,6 +754,16 @@ export function PnlDashboard({
                         </dd>
                       </div>
                     )}
+                    {pair === "all" && (
+                      <div>
+                        <dt>ARB/USDC</dt>
+                        <dd
+                          className={valueTone(activeDay.arb.comparablePnlUsdc)}
+                        >
+                          {formatMoney(activeDay.arb.comparablePnlUsdc)}
+                        </dd>
+                      </div>
+                    )}
                     <div className="tooltip-trades">
                       <dt>Trades</dt>
                       <dd>
@@ -783,6 +815,7 @@ export function PnlDashboard({
                 <div>Total P&amp;L</div>
                 <div>WLD/USDC</div>
                 <div>ESP/USDC</div>
+                <div>ARB/USDC</div>
                 <div>Trades</div>
                 <div>Avg/trade</div>
                 <div />
@@ -814,7 +847,7 @@ export function PnlDashboard({
                       <div
                         className={cn(
                           valueTone(day.wld.comparablePnlUsdc),
-                          pair === "esp" && "dimmed",
+                          pair !== "all" && pair !== "wld" && "dimmed",
                         )}
                       >
                         {day.status === "no_data"
@@ -824,12 +857,22 @@ export function PnlDashboard({
                       <div
                         className={cn(
                           valueTone(day.esp.comparablePnlUsdc),
-                          pair === "wld" && "dimmed",
+                          pair !== "all" && pair !== "esp" && "dimmed",
                         )}
                       >
                         {day.status === "no_data"
                           ? "—"
                           : formatMoney(day.esp.comparablePnlUsdc)}
+                      </div>
+                      <div
+                        className={cn(
+                          valueTone(day.arb.comparablePnlUsdc),
+                          pair !== "all" && pair !== "arb" && "dimmed",
+                        )}
+                      >
+                        {day.status === "no_data"
+                          ? "—"
+                          : formatMoney(day.arb.comparablePnlUsdc)}
                       </div>
                       <div>
                         {day.status === "no_data"
@@ -1085,12 +1128,10 @@ export function PnlDashboard({
                     <span />
                   </div>
                   {RESOURCE_ROWS.map((resourceRow) => {
-                    const status =
-                      resourceRow.pair === null
-                        ? null
-                        : (report.gasStatuses.find(
-                            (item) => item.pair === resourceRow.pair,
-                          ) ?? null);
+                    const statuses = report.gasStatuses.filter((item) =>
+                      resourceRow.pairs.includes(item.pair),
+                    );
+                    const status = statuses[0] ?? null;
                     const resource =
                       report.resourceBalances.find(
                         (item) => item.resourceId === resourceRow.resourceId,
@@ -1100,9 +1141,11 @@ export function PnlDashboard({
                         new Date(resource.observedAt).getTime()
                       : Number.POSITIVE_INFINITY;
                     const stale = ageMs > 3 * 60 * 1_000;
-                    const check =
-                      status?.priceFresh === false ||
-                      status?.nativeGasFunded === false;
+                    const check = statuses.some(
+                      (item) =>
+                        item.priceFresh === false ||
+                        item.nativeGasFunded === false,
+                    );
                     const state =
                       resource === null
                         ? "NO DATA"
@@ -1190,6 +1233,7 @@ export function PnlDashboard({
                     <span>USDC</span>
                     <span>WLD</span>
                     <span>ESP</span>
+                    <span>ARB</span>
                     <span>Updated UTC</span>
                   </div>
                   {report.balances.map((balance) => (
@@ -1202,6 +1246,7 @@ export function PnlDashboard({
                       <code>{formatBalance(balance.usdc, "usdc")}</code>
                       <code>{formatBalance(balance.wld, "wld")}</code>
                       <code>{formatBalance(balance.esp, "esp")}</code>
+                      <code>{formatBalance(balance.arb, "arb")}</code>
                       <time>{formatUpdated(balance.observedAt)}</time>
                     </div>
                   ))}
@@ -1210,6 +1255,7 @@ export function PnlDashboard({
                     <code>{formatBalance(balanceTotals.usdc, "usdc")}</code>
                     <code>{formatBalance(balanceTotals.wld, "wld")}</code>
                     <code>{formatBalance(balanceTotals.esp, "esp")}</code>
+                    <code>{formatBalance(balanceTotals.arb, "arb")}</code>
                     <time>—</time>
                   </div>
                 </div>

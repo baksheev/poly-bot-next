@@ -11,8 +11,10 @@
   --muted-strong: #5b6472;
   --profit: #54a4f0;
   --profit-soft: #a6cdf8;
+  --profit-arb: #9b8afb;
   --loss: #f2635a;
   --loss-soft: #f4a49e;
+  --loss-arb: #d77b91;
   --warning: #e8a13c;
 }
 
@@ -521,6 +523,10 @@ button.kpi-card:hover {
   background: var(--profit-soft);
 }
 
+.legend-arb {
+  background: var(--profit-arb);
+}
+
 .chart-legend .legend-note {
   color: var(--muted-strong);
 }
@@ -624,12 +630,20 @@ button.kpi-card:hover {
   background: var(--profit-soft);
 }
 
+.bar-arb-profit {
+  background: var(--profit-arb);
+}
+
 .bar-wld-loss {
   background: var(--loss);
 }
 
 .bar-esp-loss {
   background: var(--loss-soft);
+}
+
+.bar-arb-loss {
+  background: var(--loss-arb);
 }
 
 .chart-tooltip {
@@ -749,7 +763,7 @@ button.kpi-card:hover {
 
 .table-row {
   display: grid;
-  grid-template-columns: 150px 1fr 1fr 1fr 80px 100px 90px;
+  grid-template-columns: 150px repeat(4, 1fr) 80px 100px 90px;
   align-items: center;
   gap: 10px;
   padding: 8px 18px;
@@ -1126,7 +1140,7 @@ button.kpi-card:hover {
 
 .balance-line {
   grid-template-columns:
-    minmax(180px, 1fr) repeat(3, minmax(100px, 0.65fr))
+    minmax(180px, 1fr) repeat(4, minmax(100px, 0.65fr))
     150px;
 }
 
@@ -1392,11 +1406,12 @@ button.kpi-card:hover {
 
   .table-row > div:nth-child(3),
   .table-row > div:nth-child(4),
-  .table-row > div:nth-child(6) {
+  .table-row > div:nth-child(5),
+  .table-row > div:nth-child(7) {
     display: none;
   }
 
-  .table-row > div:nth-child(5) {
+  .table-row > div:nth-child(6) {
     display: block;
   }
 

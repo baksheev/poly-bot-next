@@ -1,4 +1,4 @@
-export type PairKey = "wld" | "esp";
+export type PairKey = "wld" | "esp" | "arb";
 
 export type DailyPairPnl = {
   completedTrades: number;
@@ -16,6 +16,7 @@ export type PnlDay = {
   status: "complete" | "in_progress" | "no_data";
   wld: DailyPairPnl;
   esp: DailyPairPnl;
+  arb: DailyPairPnl;
 };
 
 export type RecentAttempt = {
@@ -64,6 +65,7 @@ export type VenueBalance = {
   usdc: number | null;
   wld: number | null;
   esp: number | null;
+  arb: number | null;
   observedAt: string;
 };
 

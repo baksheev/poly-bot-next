@@ -40,10 +40,11 @@ instead of falling back to demo data.
 
 ## Data contract
 
-The repository reads the two production pair IDs already emitted by `poly_bot`:
+The repository reads the production pair IDs already emitted by `poly_bot`:
 
 - `world-chain-usdc-wld`
 - `arbitrum-usdc-esp`
+- `arbitrum-usdc-arb`
 
 Daily P&L comes from terminal `dex_first` events with
 `kind = 'arbitrage_result'` in `runtime_telemetry`.

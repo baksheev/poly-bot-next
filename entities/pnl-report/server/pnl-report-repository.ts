@@ -19,7 +19,12 @@ import { createDemoPnlReport } from "./demo-pnl-report";
 const PAIR_IDS: Record<PairKey, string> = {
   wld: "world-chain-usdc-wld",
   esp: "arbitrum-usdc-esp",
+  arb: "arbitrum-usdc-arb",
 };
+
+const PAIR_IDS_SQL = Object.values(PAIR_IDS)
+  .map((pairId) => `'${pairId}'`)
+  .join(", ");
 
 const dailyRowSchema = z.object({
   date: z.string(),
@@ -150,7 +155,9 @@ async function clickHouseQuery(config: ClickHouseConfig, query: string) {
     .map((line) => JSON.parse(line) as unknown);
 }
 
-async function loadResourceBalances(config: ClickHouseConfig): Promise<ResourceBalance[]> {
+async function loadResourceBalances(
+  config: ClickHouseConfig,
+): Promise<ResourceBalance[]> {
   const query = `
     SELECT
       resource_id,
@@ -175,23 +182,33 @@ async function loadResourceBalances(config: ClickHouseConfig): Promise<ResourceB
 
   try {
     const raw = await clickHouseQuery(config, query);
-    return z.array(resourceBalanceRowSchema).parse(raw).flatMap((row) => {
-      const balance = Number(row.balance);
-      const consumption24h = Number(row.consumption_24h);
-      const averageDailyConsumption = Number(row.average_daily_consumption);
-      if (![balance, consumption24h, averageDailyConsumption].every(Number.isFinite)) return [];
+    return z
+      .array(resourceBalanceRowSchema)
+      .parse(raw)
+      .flatMap((row) => {
+        const balance = Number(row.balance);
+        const consumption24h = Number(row.consumption_24h);
+        const averageDailyConsumption = Number(row.average_daily_consumption);
+        if (
+          ![balance, consumption24h, averageDailyConsumption].every(
+            Number.isFinite,
+          )
+        )
+          return [];
 
-      return [{
-        resourceId: row.resource_id,
-        usage: row.usage,
-        asset: row.asset,
-        balance,
-        consumption24h,
-        averageDailyConsumption,
-        consumptionWindowComplete: Boolean(row.consumption_window_complete),
-        observedAt: row.observed_at,
-      }];
-    });
+        return [
+          {
+            resourceId: row.resource_id,
+            usage: row.usage,
+            asset: row.asset,
+            balance,
+            consumption24h,
+            averageDailyConsumption,
+            consumptionWindowComplete: Boolean(row.consumption_window_complete),
+            observedAt: row.observed_at,
+          },
+        ];
+      });
   } catch {
     // Resource telemetry was added after the original dashboard. Keep the
     // established P&L feed live while the new table is being rolled out.
@@ -202,6 +219,7 @@ async function loadResourceBalances(config: ClickHouseConfig): Promise<ResourceB
 function pairKey(pairId: string): PairKey | null {
   if (pairId === PAIR_IDS.wld) return "wld";
   if (pairId === PAIR_IDS.esp) return "esp";
+  if (pairId === PAIR_IDS.arb) return "arb";
   return null;
 }
 
@@ -221,7 +239,13 @@ function emptyPair(): DailyPairPnl {
 function createUtcDateRange(days: number) {
   const now = new Date();
   return Array.from({ length: days }, (_, index) => {
-    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - (days - index - 1)));
+    const date = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() - (days - index - 1),
+      ),
+    );
     return date.toISOString().slice(0, 10);
   });
 }
@@ -235,7 +259,9 @@ function latestIso(left: string | null, right: string) {
   return left === null || right > left ? right : left;
 }
 
-async function loadClickHouseReport(config: ClickHouseConfig): Promise<PnlDashboardReport> {
+async function loadClickHouseReport(
+  config: ClickHouseConfig,
+): Promise<PnlDashboardReport> {
   const dailyQuery = `
     SELECT
       toString(toDate(fromUnixTimestamp64Milli(observed_at_ms), 'UTC')) AS date,
@@ -262,7 +288,7 @@ async function loadClickHouseReport(config: ClickHouseConfig): Promise<PnlDashbo
       ) AS binance_fee_usdc
     FROM runtime_telemetry
     WHERE kind = 'arbitrage_result'
-      AND JSONExtractString(payload_json, 'pair_id') IN ('${PAIR_IDS.wld}', '${PAIR_IDS.esp}')
+      AND JSONExtractString(payload_json, 'pair_id') IN (${PAIR_IDS_SQL})
       AND JSONExtractString(payload_json, 'execution_mode') = 'dex_first'
       AND observed_at_ms >= toUnixTimestamp64Milli(now64(3, 'UTC') - INTERVAL 90 DAY)
     GROUP BY date, pair_id
@@ -279,7 +305,7 @@ async function loadClickHouseReport(config: ClickHouseConfig): Promise<PnlDashbo
       toInt128OrZero(JSONExtractString(payload_json, 'comparable_profit_token_a_base_units')) / 1000000 AS comparable_pnl_usdc
     FROM runtime_telemetry
     WHERE kind = 'arbitrage_result'
-      AND JSONExtractString(payload_json, 'pair_id') IN ('${PAIR_IDS.wld}', '${PAIR_IDS.esp}')
+      AND JSONExtractString(payload_json, 'pair_id') IN (${PAIR_IDS_SQL})
       AND JSONExtractString(payload_json, 'execution_mode') = 'dex_first'
     ORDER BY observed_at_ms DESC
     LIMIT 120
@@ -324,7 +350,7 @@ async function loadClickHouseReport(config: ClickHouseConfig): Promise<PnlDashbo
     )
     WHERE blocked_at > greatest(result_at, terminal_at)
       AND plan_id != ''
-      AND pair_id IN ('${PAIR_IDS.wld}', '${PAIR_IDS.esp}')
+      AND pair_id IN (${PAIR_IDS_SQL})
     ORDER BY blocked_at DESC
     LIMIT 50
   `;
@@ -363,7 +389,7 @@ async function loadClickHouseReport(config: ClickHouseConfig): Promise<PnlDashbo
       ) AS gas_price_fresh
     FROM runtime_telemetry
     WHERE kind = 'pretrade_cost_candidate'
-      AND JSONExtractString(payload_json, 'pair_id') IN ('${PAIR_IDS.wld}', '${PAIR_IDS.esp}')
+      AND JSONExtractString(payload_json, 'pair_id') IN (${PAIR_IDS_SQL})
       AND observed_at_ms >= toUnixTimestamp64Milli(now64(3, 'UTC') - INTERVAL 7 DAY)
     ORDER BY pair_id ASC, observed_at_ms DESC
     LIMIT 1 BY pair_id
@@ -377,13 +403,21 @@ async function loadClickHouseReport(config: ClickHouseConfig): Promise<PnlDashbo
     FROM runtime_telemetry
     WHERE kind = 'live_readiness'
       AND JSONExtractString(payload_json, 'stage') = 'arbitrum_chain'
-      AND JSONExtractString(payload_json, 'pair_id') IN ('${PAIR_IDS.wld}', '${PAIR_IDS.esp}')
+      AND JSONExtractString(payload_json, 'pair_id') IN (${PAIR_IDS_SQL})
       AND observed_at_ms >= toUnixTimestamp64Milli(now64(3, 'UTC') - INTERVAL 7 DAY)
     ORDER BY pair_id ASC, observed_at_ms DESC
     LIMIT 1 BY pair_id
   `;
 
-  const [dailyRaw, attemptsRaw, exposuresRaw, balancesRaw, gasPricesRaw, gasReadinessRaw, resourceBalances] = await Promise.all([
+  const [
+    dailyRaw,
+    attemptsRaw,
+    exposuresRaw,
+    balancesRaw,
+    gasPricesRaw,
+    gasReadinessRaw,
+    resourceBalances,
+  ] = await Promise.all([
     clickHouseQuery(config, dailyQuery),
     clickHouseQuery(config, attemptsQuery),
     clickHouseQuery(config, exposuresQuery),
@@ -398,7 +432,9 @@ async function loadClickHouseReport(config: ClickHouseConfig): Promise<PnlDashbo
   const exposureRows = z.array(exposureRowSchema).parse(exposuresRaw);
   const balanceRows = z.array(balanceRowSchema).parse(balancesRaw);
   const gasPriceRows = z.array(gasPriceRowSchema).parse(gasPricesRaw);
-  const gasReadinessRows = z.array(gasReadinessRowSchema).parse(gasReadinessRaw);
+  const gasReadinessRows = z
+    .array(gasReadinessRowSchema)
+    .parse(gasReadinessRaw);
   const daysByDate = new Map<string, PnlDay>();
   const today = new Date().toISOString().slice(0, 10);
 
@@ -408,6 +444,7 @@ async function loadClickHouseReport(config: ClickHouseConfig): Promise<PnlDashbo
       status: date === today ? "in_progress" : "no_data",
       wld: emptyPair(),
       esp: emptyPair(),
+      arb: emptyPair(),
     });
   }
 
@@ -447,64 +484,120 @@ async function loadClickHouseReport(config: ClickHouseConfig): Promise<PnlDashbo
   const haltedExposures: HaltedExposure[] = exposureRows.flatMap((row) => {
     const pair = pairKey(row.pair_id);
     if (!pair) return [];
-    return [{ planId: row.plan_id, observedAt: row.observed_at, pair, stage: row.stage }];
+    return [
+      {
+        planId: row.plan_id,
+        observedAt: row.observed_at,
+        pair,
+        stage: row.stage,
+      },
+    ];
   });
 
-  const balances: VenueBalance[] = balanceRows.flatMap((row) => {
-    if (row.kind === "wallet_balance_snapshot") {
-      const payload = walletBalancePayloadSchema.parse(JSON.parse(row.payload_json));
-      const venue = payload.chain_id === 480
-        ? "World Chain wallet"
-        : payload.chain_id === 42161
-          ? "Arbitrum wallet"
-          : null;
-      if (!venue) return [];
+  const balances: VenueBalance[] = balanceRows
+    .flatMap((row) => {
+      if (row.kind === "wallet_balance_snapshot") {
+        const payload = walletBalancePayloadSchema.parse(
+          JSON.parse(row.payload_json),
+        );
+        const venue =
+          payload.chain_id === 480
+            ? "World Chain wallet"
+            : payload.chain_id === 42161
+              ? "Arbitrum wallet"
+              : null;
+        if (!venue) return [];
 
-      const amount = (symbol: "USDC" | "WLD" | "ESP") => {
-        const token = payload.token_balances.find((item) => item.symbol.toUpperCase() === symbol);
-        if (!token) return null;
-        return tokenBalance(token.base_units, symbol === "USDC" ? 6 : 18);
+        const amount = (symbol: "USDC" | "WLD" | "ESP" | "ARB") => {
+          const token = payload.token_balances.find(
+            (item) => item.symbol.toUpperCase() === symbol,
+          );
+          if (!token) return null;
+          return tokenBalance(token.base_units, symbol === "USDC" ? 6 : 18);
+        };
+
+        return [
+          {
+            venue,
+            usdc: amount("USDC"),
+            wld: amount("WLD"),
+            esp: amount("ESP"),
+            arb: amount("ARB"),
+            observedAt: row.observed_at,
+          },
+        ];
+      }
+
+      const payload = binanceBalancePayloadSchema.parse(
+        JSON.parse(row.payload_json),
+      );
+      const amount = (asset: "USDC" | "WLD" | "ESP" | "ARB") => {
+        const balance = payload.balances.find(
+          (item) => item.asset.toUpperCase() === asset,
+        );
+        if (!balance) return null;
+        const value = Number(balance.free) + Number(balance.locked);
+        return Number.isFinite(value) ? value : null;
       };
 
-      return [{
-        venue,
-        usdc: amount("USDC"),
-        wld: amount("WLD"),
-        esp: amount("ESP"),
-        observedAt: row.observed_at,
-      }];
-    }
-
-    const payload = binanceBalancePayloadSchema.parse(JSON.parse(row.payload_json));
-    const amount = (asset: "USDC" | "WLD" | "ESP") => {
-      const balance = payload.balances.find((item) => item.asset.toUpperCase() === asset);
-      if (!balance) return null;
-      const value = Number(balance.free) + Number(balance.locked);
-      return Number.isFinite(value) ? value : null;
-    };
-
-    return [{
-      venue: "Binance Spot",
-      usdc: amount("USDC"),
-      wld: amount("WLD"),
-      esp: amount("ESP"),
-      observedAt: row.observed_at,
-    }];
-  }).sort((left, right) => {
-    const order = ["Binance Spot", "World Chain wallet", "Arbitrum wallet"];
-    return order.indexOf(left.venue) - order.indexOf(right.venue);
-  });
+      return [
+        {
+          venue: "Binance Spot",
+          usdc: amount("USDC"),
+          wld: amount("WLD"),
+          esp: amount("ESP"),
+          arb: amount("ARB"),
+          observedAt: row.observed_at,
+        },
+      ];
+    })
+    .sort((left, right) => {
+      const order = ["Binance Spot", "World Chain wallet", "Arbitrum wallet"];
+      return order.indexOf(left.venue) - order.indexOf(right.venue);
+    });
 
   const gasByPair = new Map<PairKey, GasStatus>([
-    ["wld", { pair: "wld", chain: "World Chain", gasPriceGwei: null, priceFresh: null, nativeGasFunded: null, observedAt: null }],
-    ["esp", { pair: "esp", chain: "Arbitrum", gasPriceGwei: null, priceFresh: null, nativeGasFunded: null, observedAt: null }],
+    [
+      "wld",
+      {
+        pair: "wld",
+        chain: "World Chain",
+        gasPriceGwei: null,
+        priceFresh: null,
+        nativeGasFunded: null,
+        observedAt: null,
+      },
+    ],
+    [
+      "esp",
+      {
+        pair: "esp",
+        chain: "Arbitrum",
+        gasPriceGwei: null,
+        priceFresh: null,
+        nativeGasFunded: null,
+        observedAt: null,
+      },
+    ],
+    [
+      "arb",
+      {
+        pair: "arb",
+        chain: "Arbitrum",
+        gasPriceGwei: null,
+        priceFresh: null,
+        nativeGasFunded: null,
+        observedAt: null,
+      },
+    ],
   ]);
 
   for (const row of gasPriceRows) {
     const key = pairKey(row.pair_id);
     const status = key ? gasByPair.get(key) : null;
     if (!status) continue;
-    status.gasPriceGwei = row.gas_price_wei === null ? null : row.gas_price_wei / 1_000_000_000;
+    status.gasPriceGwei =
+      row.gas_price_wei === null ? null : row.gas_price_wei / 1_000_000_000;
     status.priceFresh = Boolean(row.gas_price_fresh);
     status.observedAt = latestIso(status.observedAt, row.observed_at);
   }
@@ -518,7 +611,7 @@ async function loadClickHouseReport(config: ClickHouseConfig): Promise<PnlDashbo
   }
 
   const rebalancingStatuses: PairRebalancingStatus[] = (
-    ["wld", "esp"] as const
+    ["wld", "esp", "arb"] as const
   ).map((pair) => {
     const pairExposures = haltedExposures.filter(
       (exposure) => exposure.pair === pair,
@@ -565,7 +658,8 @@ export async function getPnlDashboard(): Promise<PnlDashboardReport> {
     return await loadClickHouseReport(config);
   } catch (error) {
     if (process.env.CLICKHOUSE_REQUIRED === "1") throw error;
-    const message = error instanceof Error ? error.message : "ClickHouse is unavailable";
+    const message =
+      error instanceof Error ? error.message : "ClickHouse is unavailable";
     return createDemoPnlReport(message);
   }
 }

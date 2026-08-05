@@ -29,18 +29,48 @@ function seeded(index: number, salt: number) {
 }
 
 function makePair(index: number, pair: PairKey): DailyPairPnl {
-  const salt = pair === "wld" ? 3 : 11;
-  const trades = Math.max(0, Math.round(8 + seeded(index, salt) * (pair === "wld" ? 31 : 17)));
+  const config = {
+    wld: {
+      salt: 3,
+      tradeRange: 31,
+      cashScale: 7.4,
+      gasPerTrade: 0.0032,
+      turnoverPerTrade: 94,
+    },
+    esp: {
+      salt: 11,
+      tradeRange: 17,
+      cashScale: 3.1,
+      gasPerTrade: 0.0014,
+      turnoverPerTrade: 61,
+    },
+    arb: {
+      salt: 19,
+      tradeRange: 24,
+      cashScale: 4.8,
+      gasPerTrade: 0.0017,
+      turnoverPerTrade: 78,
+    },
+  }[pair];
+  const { salt } = config;
+  const trades = Math.max(
+    0,
+    Math.round(8 + seeded(index, salt) * config.tradeRange),
+  );
   const pulse = Math.sin(index / 4.2 + salt) * 0.75;
-  const cash = (seeded(index, salt + 2) - 0.34 + pulse * 0.15) * (pair === "wld" ? 7.4 : 3.1);
+  const cash =
+    (seeded(index, salt + 2) - 0.34 + pulse * 0.15) * config.cashScale;
   const residual = (seeded(index, salt + 5) - 0.52) * 0.22;
-  const gas = trades * (pair === "wld" ? 0.0032 : 0.0014);
-  const turnover = trades * (pair === "wld" ? 94 : 61) * (0.8 + seeded(index, salt + 7) * 0.4);
+  const gas = trades * config.gasPerTrade;
+  const turnover =
+    trades * config.turnoverPerTrade * (0.8 + seeded(index, salt + 7) * 0.4);
   const comparable = cash + residual;
 
   return {
     completedTrades: trades,
-    profitableTrades: Math.round(trades * (0.52 + seeded(index, salt + 9) * 0.28)),
+    profitableTrades: Math.round(
+      trades * (0.52 + seeded(index, salt + 9) * 0.28),
+    ),
     cashRealizedUsdc: cash,
     residualMarkUsdc: residual,
     comparablePnlUsdc: comparable,
@@ -50,12 +80,20 @@ function makePair(index: number, pair: PairKey): DailyPairPnl {
   };
 }
 
-export function createDemoPnlReport(reason: string | null = null): PnlDashboardReport {
+export function createDemoPnlReport(
+  reason: string | null = null,
+): PnlDashboardReport {
   const now = new Date();
   const days: PnlDay[] = [];
 
   for (let index = 89; index >= 0; index -= 1) {
-    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - index));
+    const date = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() - index,
+      ),
+    );
     const sequence = 89 - index;
     const missing = sequence === 12 || sequence === 46;
 
@@ -63,14 +101,21 @@ export function createDemoPnlReport(reason: string | null = null): PnlDashboardR
       date: isoDate(date),
       status: missing ? "no_data" : index === 0 ? "in_progress" : "complete",
       wld: missing ? { ...EMPTY_PAIR } : makePair(sequence, "wld"),
-      esp: missing || sequence < 66 ? { ...EMPTY_PAIR } : makePair(sequence, "esp"),
+      esp:
+        missing || sequence < 66
+          ? { ...EMPTY_PAIR }
+          : makePair(sequence, "esp"),
+      arb:
+        missing || sequence < 72
+          ? { ...EMPTY_PAIR }
+          : makePair(sequence, "arb"),
     });
   }
 
   const attempts: RecentAttempt[] = days
     .slice(-14)
     .flatMap((day, dayIndex) =>
-      (["wld", "esp"] as const).flatMap((pair, pairIndex) => {
+      (["wld", "esp", "arb"] as const).flatMap((pair, pairIndex) => {
         const aggregate = day[pair];
         if (aggregate.completedTrades === 0) return [];
         const count = Math.min(3, aggregate.completedTrades);
@@ -86,7 +131,8 @@ export function createDemoPnlReport(reason: string | null = null): PnlDashboardR
             id: `${day.date}-${pair}-${attemptIndex}`,
             observedAt,
             pair,
-            direction: attemptIndex % 2 === 0 ? "DEX → Binance" : "Binance → DEX",
+            direction:
+              attemptIndex % 2 === 0 ? "DEX → Binance" : "Binance → DEX",
             outcome: share >= 0 ? "balanced_profit" : "balanced_loss",
             comparablePnlUsdc: share,
           } satisfies RecentAttempt;
@@ -98,7 +144,8 @@ export function createDemoPnlReport(reason: string | null = null): PnlDashboardR
   const exposures: HaltedExposure[] = [
     {
       planId: "esp-7e0c…a19f",
-      observedAt: days.at(-7)?.date.concat("T14:28:11.000Z") ?? now.toISOString(),
+      observedAt:
+        days.at(-7)?.date.concat("T14:28:11.000Z") ?? now.toISOString(),
       pair: "esp",
       stage: "BlockedUnknown",
     },
@@ -117,6 +164,12 @@ export function createDemoPnlReport(reason: string | null = null): PnlDashboardR
       since: exposures[0]?.observedAt ?? now.toISOString(),
       detail:
         "ESP deposits on Binance suspended · fail-closed · needs intervention",
+    },
+    {
+      pair: "arb",
+      state: "healthy",
+      since: null,
+      detail: "No open halted exposure detected in current telemetry",
     },
   ];
 
@@ -145,11 +198,40 @@ export function createDemoPnlReport(reason: string | null = null): PnlDashboardR
         nativeGasFunded: true,
         observedAt: now.toISOString(),
       },
+      {
+        pair: "arb",
+        chain: "Arbitrum",
+        gasPriceGwei: 0.02,
+        priceFresh: true,
+        nativeGasFunded: true,
+        observedAt: now.toISOString(),
+      },
     ],
     balances: [
-      { venue: "Binance Spot", usdc: 1127.5422, wld: 9599.7992, esp: 5006.8914, observedAt: now.toISOString() },
-      { venue: "World Chain wallet", usdc: 838.9069, wld: 4285.252, esp: null, observedAt: now.toISOString() },
-      { venue: "Arbitrum wallet", usdc: 627.0743, wld: null, esp: 5006.8914, observedAt: now.toISOString() },
+      {
+        venue: "Binance Spot",
+        usdc: 1127.5422,
+        wld: 9599.7992,
+        esp: 5006.8914,
+        arb: 7482.112,
+        observedAt: now.toISOString(),
+      },
+      {
+        venue: "World Chain wallet",
+        usdc: 838.9069,
+        wld: 4285.252,
+        esp: null,
+        arb: null,
+        observedAt: now.toISOString(),
+      },
+      {
+        venue: "Arbitrum wallet",
+        usdc: 627.0743,
+        wld: null,
+        esp: 5006.8914,
+        arb: 6210.4431,
+        observedAt: now.toISOString(),
+      },
     ],
     resourceBalances: [
       {
