@@ -943,6 +943,135 @@ button.kpi-card:hover {
   padding-top: 10px;
 }
 
+.rebalancing-panel {
+  padding: 16px 18px;
+}
+
+.rebalancing-heading {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rebalancing-heading span {
+  color: var(--muted-strong);
+  font-weight: 400;
+}
+
+.rebalancing-line {
+  display: grid;
+  grid-template-columns: 8px 100px 130px 150px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 12px;
+  border-bottom: 1px solid #12161d;
+  padding: 8px 0;
+  font-size: 13px;
+}
+
+.rebalancing-line > strong {
+  color: var(--text);
+  font-weight: 400;
+}
+
+.rebalancing-line > time {
+  color: var(--muted-strong);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.rebalancing-line > p {
+  min-width: 0;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.rebalancing-state {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.rebalancing-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: none;
+  align-self: center;
+  border-radius: 50%;
+}
+
+.rebalancing-state.rebalancing-healthy {
+  color: #3ecf8e;
+}
+
+.rebalancing-dot.rebalancing-healthy {
+  background-color: #3ecf8e;
+}
+
+.rebalancing-state.rebalancing-rebalance_pending {
+  color: #e5c04b;
+}
+
+.rebalancing-dot.rebalancing-rebalance_pending {
+  background-color: #e5c04b;
+}
+
+.rebalancing-state.rebalancing-rebalancing,
+.rebalancing-state.rebalancing-settling {
+  color: var(--profit);
+}
+
+.rebalancing-dot.rebalancing-rebalancing,
+.rebalancing-dot.rebalancing-settling,
+.rebalancing-dot.rebalancing-active {
+  background-color: var(--profit);
+}
+
+.rebalancing-state.rebalancing-recovering {
+  color: #e8813c;
+}
+
+.rebalancing-dot.rebalancing-recovering {
+  background-color: #e8813c;
+}
+
+.rebalancing-state.rebalancing-blocked {
+  color: var(--loss);
+}
+
+.rebalancing-dot.rebalancing-blocked {
+  background-color: var(--loss);
+}
+
+.rebalancing-state.rebalancing-telemetry_stale {
+  color: #6b7687;
+}
+
+.rebalancing-dot.rebalancing-telemetry_stale {
+  background-color: #6b7687;
+}
+
+.rebalancing-legend {
+  display: flex;
+  gap: 14px;
+  margin-top: 10px;
+  color: var(--muted-strong);
+  font-size: 11px;
+  flex-wrap: wrap;
+}
+
+.rebalancing-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.rebalancing-legend .rebalancing-dot {
+  width: 7px;
+  height: 7px;
+}
+
 .attempts-panel {
   padding-bottom: 16px;
 }
@@ -1221,9 +1350,23 @@ button.kpi-card:hover {
   .chart-panel,
   .attempts-panel,
   .live-telemetry-panel,
-  .exposure-list {
+  .exposure-list,
+  .rebalancing-panel {
     padding-right: 12px;
     padding-left: 12px;
+  }
+
+  .rebalancing-line {
+    grid-template-columns: 8px 92px 1fr;
+    gap: 6px 10px;
+  }
+
+  .rebalancing-line > time {
+    grid-column: 2 / -1;
+  }
+
+  .rebalancing-line > p {
+    grid-column: 2 / -1;
   }
 
   .panel-heading {

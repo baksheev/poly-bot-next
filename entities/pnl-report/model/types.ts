@@ -34,6 +34,22 @@ export type HaltedExposure = {
   stage: string;
 };
 
+export type RebalancingState =
+  | "healthy"
+  | "rebalance_pending"
+  | "rebalancing"
+  | "settling"
+  | "recovering"
+  | "blocked"
+  | "telemetry_stale";
+
+export type PairRebalancingStatus = {
+  pair: PairKey;
+  state: RebalancingState;
+  since: string | null;
+  detail: string;
+};
+
 export type GasStatus = {
   pair: PairKey;
   chain: string;
@@ -69,6 +85,7 @@ export type PnlDashboardReport = {
   days: PnlDay[];
   recentAttempts: RecentAttempt[];
   haltedExposures: HaltedExposure[];
+  rebalancingStatuses: PairRebalancingStatus[];
   gasStatuses: GasStatus[];
   balances: VenueBalance[];
   resourceBalances: ResourceBalance[];

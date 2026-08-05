@@ -7,6 +7,7 @@ import type {
   GasStatus,
   HaltedExposure,
   PairKey,
+  PairRebalancingStatus,
   PnlDashboardReport,
   PnlDay,
   RecentAttempt,
@@ -516,6 +517,32 @@ async function loadClickHouseReport(config: ClickHouseConfig): Promise<PnlDashbo
     status.observedAt = latestIso(status.observedAt, row.observed_at);
   }
 
+  const rebalancingStatuses: PairRebalancingStatus[] = (
+    ["wld", "esp"] as const
+  ).map((pair) => {
+    const pairExposures = haltedExposures.filter(
+      (exposure) => exposure.pair === pair,
+    );
+    if (pairExposures.length > 0) {
+      const oldestExposure = pairExposures.reduce((oldest, exposure) =>
+        exposure.observedAt < oldest.observedAt ? exposure : oldest,
+      );
+      return {
+        pair,
+        state: "blocked",
+        since: oldestExposure.observedAt,
+        detail: `${pairExposures.length} halted exposure${pairExposures.length === 1 ? "" : "s"} · fail-closed · needs intervention`,
+      };
+    }
+
+    return {
+      pair,
+      state: "healthy",
+      since: null,
+      detail: "No open halted exposure detected in current telemetry",
+    };
+  });
+
   return {
     source: "clickhouse",
     sourceMessage: null,
@@ -523,6 +550,7 @@ async function loadClickHouseReport(config: ClickHouseConfig): Promise<PnlDashbo
     days: [...daysByDate.values()],
     recentAttempts,
     haltedExposures,
+    rebalancingStatuses,
     gasStatuses: [...gasByPair.values()],
     balances,
     resourceBalances,

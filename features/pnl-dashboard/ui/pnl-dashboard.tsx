@@ -8,6 +8,7 @@ import type {
   PairKey,
   PnlDashboardReport,
   PnlDay,
+  RebalancingState,
 } from "@/entities/pnl-report";
 import { cn } from "@/shared/lib";
 
@@ -63,6 +64,26 @@ const RESOURCE_ROWS = [
     pair: null,
   },
 ] as const;
+const REBALANCING_STATES: ReadonlyArray<{
+  state: RebalancingState | "active";
+  label: string;
+}> = [
+  { state: "healthy", label: "Healthy" },
+  { state: "rebalance_pending", label: "Rebalance pending" },
+  { state: "active", label: "Rebalancing / Settling" },
+  { state: "recovering", label: "Recovering" },
+  { state: "blocked", label: "Blocked" },
+  { state: "telemetry_stale", label: "Telemetry stale" },
+];
+const REBALANCING_LABELS: Record<RebalancingState, string> = {
+  healthy: "Healthy",
+  rebalance_pending: "Rebalance pending",
+  rebalancing: "Rebalancing",
+  settling: "Settling",
+  recovering: "Recovering",
+  blocked: "Blocked",
+  telemetry_stale: "Telemetry stale",
+};
 
 function addPair(left: DailyPairPnl, right: DailyPairPnl): DailyPairPnl {
   return {
@@ -128,6 +149,15 @@ function formatUpdated(value: string) {
 
   const [, year, month, day, hour, minute, second] = match;
   return `${day} ${MONTHS[Number(month) - 1] ?? "—"} ${year}, ${hour}:${minute}:${second}`;
+}
+
+function formatRebalancingSince(value: string | null) {
+  if (value === null) return "—";
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
+  if (!match) return "—";
+
+  const [, year, month, day, hour, minute] = match;
+  return `${year}-${month}-${day} ${hour}:${minute} UTC`;
 }
 
 function formatGasPrice(value: number | null) {
@@ -948,6 +978,52 @@ export function PnlDashboard({
                 No currently blocked inventory state was found.
               </div>
             )}
+          </section>
+
+          <section className="panel rebalancing-panel">
+            <h2 className="rebalancing-heading">
+              Rebalancing status <span>per pair</span>
+            </h2>
+            <div className="rebalancing-list">
+              {report.rebalancingStatuses.map((status) => (
+                <div className="rebalancing-line" key={status.pair}>
+                  <i
+                    className={cn(
+                      "rebalancing-dot",
+                      `rebalancing-${status.state}`,
+                    )}
+                    aria-hidden="true"
+                  />
+                  <strong>{status.pair.toUpperCase()}/USDC</strong>
+                  <span
+                    className={cn(
+                      "rebalancing-state",
+                      `rebalancing-${status.state}`,
+                    )}
+                  >
+                    {REBALANCING_LABELS[status.state]}
+                  </span>
+                  <time dateTime={status.since ?? undefined}>
+                    {formatRebalancingSince(status.since)}
+                  </time>
+                  <p>{status.detail}</p>
+                </div>
+              ))}
+            </div>
+            <div className="rebalancing-legend" aria-label="Status legend">
+              {REBALANCING_STATES.map((item) => (
+                <span key={item.state}>
+                  <i
+                    className={cn(
+                      "rebalancing-dot",
+                      `rebalancing-${item.state}`,
+                    )}
+                    aria-hidden="true"
+                  />
+                  {item.label}
+                </span>
+              ))}
+            </div>
           </section>
 
           <section className="panel attempts-panel">

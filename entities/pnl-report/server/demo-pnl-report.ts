@@ -1,6 +1,7 @@
 import type {
   DailyPairPnl,
   HaltedExposure,
+  PairRebalancingStatus,
   PairKey,
   PnlDashboardReport,
   PnlDay,
@@ -103,6 +104,22 @@ export function createDemoPnlReport(reason: string | null = null): PnlDashboardR
     },
   ];
 
+  const rebalancingStatuses: PairRebalancingStatus[] = [
+    {
+      pair: "wld",
+      state: "rebalancing",
+      since: new Date(now.getTime() - 4 * 60 * 1_000).toISOString(),
+      detail: "USDC → World Chain wallet · 6,000 USDC in flight · ETA ≈ 4 min",
+    },
+    {
+      pair: "esp",
+      state: "blocked",
+      since: exposures[0]?.observedAt ?? now.toISOString(),
+      detail:
+        "ESP deposits on Binance suspended · fail-closed · needs intervention",
+    },
+  ];
+
   return {
     source: "demo",
     sourceMessage: reason,
@@ -110,6 +127,7 @@ export function createDemoPnlReport(reason: string | null = null): PnlDashboardR
     days,
     recentAttempts: attempts,
     haltedExposures: exposures,
+    rebalancingStatuses,
     gasStatuses: [
       {
         pair: "wld",
